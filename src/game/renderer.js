@@ -1,23 +1,14 @@
 const ARENA_BORDER = 4;
-const BALL_COLOR = '#e94560';
-const BALL_HIGHLIGHT = '#ff6b81';
 const ARENA_BG = '#16213e';
 const ARENA_BORDER_COLOR = '#e94560';
 
-export function drawFrame(ctx, canvas, ball) {
-  const w = canvas.width;
-  const h = canvas.height;
+const BALL_COLORS = {
+  player1: { main: '#e94560', highlight: '#ff6b81' },
+  player2: { main: '#0f9b8e', highlight: '#45d9c9' },
+};
 
-  // background
-  ctx.fillStyle = ARENA_BG;
-  ctx.fillRect(0, 0, w, h);
-
-  // arena border (danger zone)
-  ctx.strokeStyle = ARENA_BORDER_COLOR;
-  ctx.lineWidth = ARENA_BORDER;
-  ctx.strokeRect(ARENA_BORDER / 2, ARENA_BORDER / 2, w - ARENA_BORDER, h - ARENA_BORDER);
-
-  // ball shadow
+function drawBall(ctx, ball, colors) {
+  // shadow
   ctx.beginPath();
   ctx.arc(ball.x + 3, ball.y + 3, ball.radius, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -32,13 +23,33 @@ export function drawFrame(ctx, canvas, ball) {
     ball.y,
     ball.radius
   );
-  grad.addColorStop(0, BALL_HIGHLIGHT);
-  grad.addColorStop(1, BALL_COLOR);
+  grad.addColorStop(0, colors.highlight);
+  grad.addColorStop(1, colors.main);
 
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   ctx.fillStyle = grad;
   ctx.fill();
+}
+
+export function drawFrame(ctx, canvas, ball, remoteBall, mySlot) {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.fillStyle = ARENA_BG;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.strokeStyle = ARENA_BORDER_COLOR;
+  ctx.lineWidth = ARENA_BORDER;
+  ctx.strokeRect(ARENA_BORDER / 2, ARENA_BORDER / 2, w - ARENA_BORDER, h - ARENA_BORDER);
+
+  // Draw remote ball first (behind local)
+  if (remoteBall) {
+    const remoteSlot = mySlot === 'player1' ? 'player2' : 'player1';
+    drawBall(ctx, remoteBall, BALL_COLORS[remoteSlot]);
+  }
+
+  drawBall(ctx, ball, BALL_COLORS[mySlot || 'player1']);
 }
 
 export function drawGameOver(ctx, canvas, score) {

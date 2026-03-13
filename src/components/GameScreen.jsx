@@ -1,14 +1,17 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { startGame } from '../game/loop.js';
+import { joinGame, leaveGame } from '../game/multiplayer.js';
 
 export default function GameScreen({ onGameOver, onBack }) {
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
+  const slotRef = useRef(null);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [tilt, setTilt] = useState({ beta: 0, gamma: 0 });
+  const [status, setStatus] = useState('Connecting...');
 
-  const initGame = useCallback(() => {
+  const initGame = useCallback((slot) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -25,32 +28,42 @@ export default function GameScreen({ onGameOver, onBack }) {
         setGameOver(true);
         onGameOver(finalScore);
       },
-      (t) => setTilt({ beta: t.beta, gamma: t.gamma })
+      (t) => setTilt({ beta: t.beta, gamma: t.gamma }),
+      slot
     );
   }, [onGameOver]);
 
   useEffect(() => {
-    initGame();
+    let cancelled = false;
 
-    function handleResize() {
-      if (!gameOver && canvasRef.current) {
-        if (gameRef.current) gameRef.current.destroy();
-        initGame();
+    joinGame().then(({ slot, error }) => {
+      if (cancelled) return;
+      if (error) {
+        setStatus(error);
+        return;
       }
-    }
+      slotRef.current = slot;
+      setStatus(`Joined as ${slot}`);
+      initGame(slot);
+    });
 
-    window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      cancelled = true;
+      leaveGame();
       if (gameRef.current) gameRef.current.destroy();
     };
   }, [initGame]);
 
   function handleCanvasTap() {
-    if (gameOver) {
+    if (gameOver && slotRef.current) {
       if (gameRef.current) gameRef.current.destroy();
-      initGame();
+      initGame(slotRef.current);
     }
+  }
+
+  function handleBack() {
+    leaveGame();
+    onBack();
   }
 
   return (
@@ -61,14 +74,13 @@ export default function GameScreen({ onGameOver, onBack }) {
         onClick={handleCanvasTap}
       />
       <div style={styles.hud}>
-        <button style={styles.backBtn} onClick={onBack}>
+        <button style={styles.backBtn} onClick={handleBack}>
           &#x2715;
         </button>
         <span style={styles.score}>{score}</span>
       </div>
-      {/* Debug tilt indicator */}
       <div style={styles.debug}>
-        β:{tilt.beta.toFixed(1)} γ:{tilt.gamma.toFixed(1)}
+        {status} | β:{tilt.beta.toFixed(1)} γ:{tilt.gamma.toFixed(1)}
       </div>
     </div>
   );
