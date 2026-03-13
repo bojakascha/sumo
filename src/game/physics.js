@@ -4,6 +4,8 @@ export const defaults = {
   friction: 0.96,
   maxSpeed: 6,
   bounceForce: 1.5,
+  pushForce: 0.15,       // how much tilt advantage translates to contact push
+  contactDamping: 0.4,   // how much velocity along normal is killed on contact (0-1)
 };
 
 let settings = { ...defaults };
@@ -46,7 +48,7 @@ export function updateBall(ball, tilt, canvas) {
   ball.radius = Math.min(canvas.width, canvas.height) * settings.ballRadius;
 }
 
-export function applyBallCollision(ball, remoteBall) {
+export function applyBallCollision(ball, remoteBall, myTilt) {
   if (!remoteBall) return;
 
   const dx = ball.x - remoteBall.x;
@@ -65,20 +67,48 @@ export function applyBallCollision(ball, remoteBall) {
   ball.x += nx * overlap;
   ball.y += ny * overlap;
 
-  // Relative velocity: local minus remote
+  // Relative velocity along normal
   const rvx = ball.vx - remoteBall.vx;
   const rvy = ball.vy - remoteBall.vy;
   const velAlongNormal = rvx * nx + rvy * ny;
 
-  // Compute impulse from both approach speed and overlap pressure
-  // velAlongNormal < 0 means approaching, > 0 means separating
-  // We always apply at least a minimum push based on overlap to prevent sticking
-  const approachImpulse = velAlongNormal < 0 ? -velAlongNormal * settings.bounceForce : 0;
-  const overlapPush = overlap * 0.5;
-  const totalImpulse = approachImpulse + overlapPush;
+  // How fast are we approaching?
+  const approachSpeed = Math.max(0, -velAlongNormal);
 
-  ball.vx += totalImpulse * nx;
-  ball.vy += totalImpulse * ny;
+  if (approachSpeed > 2) {
+    // Fast collision: bounce (glancing hit / ram)
+    const impulse = approachSpeed * settings.bounceForce;
+    ball.vx += impulse * nx;
+    ball.vy += impulse * ny;
+  } else {
+    // Slow / sustained contact: sumo push contest
+    // Damp velocity along contact normal (absorb into contact)
+    if (velAlongNormal < 0) {
+      ball.vx -= velAlongNormal * nx * settings.contactDamping;
+      ball.vy -= velAlongNormal * ny * settings.contactDamping;
+    }
+
+    // My tilt force toward opponent (along -normal)
+    const myForceX = myTilt.gamma * settings.tiltSensitivity;
+    const myForceY = myTilt.beta * settings.tiltSensitivity;
+    const myPush = -(myForceX * nx + myForceY * ny); // positive = pushing toward them
+
+    // Their tilt force toward me (along +normal)
+    const remoteTiltG = remoteBall.tiltGamma || 0;
+    const remoteTiltB = remoteBall.tiltBeta || 0;
+    const theirForceX = remoteTiltG * settings.tiltSensitivity;
+    const theirForceY = remoteTiltB * settings.tiltSensitivity;
+    const theirPush = theirForceX * nx + theirForceY * ny; // positive = pushing toward me
+
+    // Net force on me: positive = I get pushed back
+    const netForce = (theirPush - myPush) * settings.pushForce / settings.tiltSensitivity;
+    ball.vx += netForce * nx;
+    ball.vy += netForce * ny;
+
+    // Minimum overlap repulsion to prevent sticking
+    ball.vx += nx * overlap * 0.3;
+    ball.vy += ny * overlap * 0.3;
+  }
 }
 
 export function checkEdgeCollision(ball, canvas) {

@@ -1,6 +1,6 @@
 import { createBall, updateBall, checkEdgeCollision, applyBallCollision, getSettings } from './physics.js';
 import { drawFrame, drawResult } from './renderer.js';
-import { sendPosition, onRemotePosition } from './multiplayer.js';
+import { sendState, onRemotePosition } from './multiplayer.js';
 
 export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot) {
   const ctx = canvas.getContext('2d');
@@ -24,6 +24,8 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
           y: data.y * canvas.height,
           vx: (data.vx || 0) * canvas.width,
           vy: (data.vy || 0) * canvas.height,
+          tiltBeta: data.tb || 0,
+          tiltGamma: data.tg || 0,
           radius: Math.min(canvas.width, canvas.height) * s.ballRadius,
         };
         if (data.dead && !remoteDead) {
@@ -74,14 +76,15 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
     if (onTiltUpdate) onTiltUpdate(tilt);
 
     updateBall(ball, tilt, canvas);
-    applyBallCollision(ball, remoteBall);
+    applyBallCollision(ball, remoteBall, tilt);
 
     if (mySlot) {
       sendCounter++;
       if (sendCounter % 3 === 0) {
-        sendPosition(
+        sendState(
           ball.x / canvas.width, ball.y / canvas.height,
           ball.vx / canvas.width, ball.vy / canvas.height,
+          tilt.beta, tilt.gamma,
           localDead
         );
       }
@@ -93,9 +96,10 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
     if (checkEdgeCollision(ball, canvas)) {
       localDead = true;
       running = false;
-      if (mySlot) sendPosition(
+      if (mySlot) sendState(
         ball.x / canvas.width, ball.y / canvas.height,
         ball.vx / canvas.width, ball.vy / canvas.height,
+        tilt.beta, tilt.gamma,
         true
       );
 
