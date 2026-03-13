@@ -1,11 +1,9 @@
-// Default settings — overridden at runtime via settings menu
 export const defaults = {
-  ballRadius: 0.08,       // fraction of smaller screen dimension
-  tiltSensitivity: 0.03,  // acceleration per degree of tilt
-  friction: 0.96,         // velocity multiplier per frame (1 = no friction)
-  maxSpeed: 6,            // pixels per frame
-  bounceForce: 1.5,       // collision impulse multiplier
-  mass: 1,                // ball mass (affects push dynamics)
+  ballRadius: 0.08,
+  tiltSensitivity: 0.03,
+  friction: 0.96,
+  maxSpeed: 6,
+  bounceForce: 1.5,
 };
 
 let settings = { ...defaults };
@@ -45,7 +43,6 @@ export function updateBall(ball, tilt, canvas) {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // Update radius live so settings changes take effect
   ball.radius = Math.min(canvas.width, canvas.height) * settings.ballRadius;
 }
 
@@ -59,30 +56,29 @@ export function applyBallCollision(ball, remoteBall) {
 
   if (dist >= minDist || dist === 0) return;
 
-  // Collision normal (from remote to local)
+  // Normal from remote toward local
   const nx = dx / dist;
   const ny = dy / dist;
 
-  // Separate balls so they don't overlap
+  // Push out of overlap
   const overlap = minDist - dist;
   ball.x += nx * overlap;
   ball.y += ny * overlap;
 
-  // Relative velocity of local ball w.r.t. remote ball
-  const rvx = ball.vx - (remoteBall.vx || 0);
-  const rvy = ball.vy - (remoteBall.vy || 0);
-
-  // Relative velocity along collision normal
+  // Relative velocity: local minus remote
+  const rvx = ball.vx - remoteBall.vx;
+  const rvy = ball.vy - remoteBall.vy;
   const velAlongNormal = rvx * nx + rvy * ny;
 
-  // Only resolve if balls are moving toward each other
-  if (velAlongNormal > 0) return;
+  // Compute impulse from both approach speed and overlap pressure
+  // velAlongNormal < 0 means approaching, > 0 means separating
+  // We always apply at least a minimum push based on overlap to prevent sticking
+  const approachImpulse = velAlongNormal < 0 ? -velAlongNormal * settings.bounceForce : 0;
+  const overlapPush = overlap * 0.5;
+  const totalImpulse = approachImpulse + overlapPush;
 
-  // Impulse based on relative velocity and bounce force
-  const impulse = -velAlongNormal * settings.bounceForce;
-
-  ball.vx += impulse * nx;
-  ball.vy += impulse * ny;
+  ball.vx += totalImpulse * nx;
+  ball.vy += totalImpulse * ny;
 }
 
 export function checkEdgeCollision(ball, canvas) {

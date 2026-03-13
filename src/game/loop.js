@@ -29,7 +29,6 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
         if (data.dead && !remoteDead) {
           remoteDead = true;
           if (!localDead) {
-            // We win!
             running = false;
             const score = Math.floor((Date.now() - startTime) / 100);
             drawFrame(ctx, canvas, ball, remoteBall, mySlot);
@@ -94,7 +93,6 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
     if (checkEdgeCollision(ball, canvas)) {
       localDead = true;
       running = false;
-      // Send death immediately
       if (mySlot) sendPosition(
         ball.x / canvas.width, ball.y / canvas.height,
         ball.vx / canvas.width, ball.vy / canvas.height,

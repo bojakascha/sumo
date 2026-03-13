@@ -9,8 +9,9 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 let mySlot = null;
+let otherSlot = null;
 let remoteRef = null;
-let unsubscribe = null;
+let unsubRemote = null;
 
 export async function joinGame() {
   const snap = await get(ref(db, 'game'));
@@ -24,14 +25,12 @@ export async function joinGame() {
     return { slot: null, error: 'Game is full' };
   }
 
+  otherSlot = mySlot === 'player1' ? 'player2' : 'player1';
+
   const myRef = ref(db, `game/${mySlot}`);
-  const otherSlot = mySlot === 'player1' ? 'player2' : 'player1';
   remoteRef = ref(db, `game/${otherSlot}`);
 
-  // Mark our slot as taken
-  await set(myRef, { x: 0, y: 0 });
-
-  // Auto-remove on disconnect
+  await set(myRef, { x: 0, y: 0, vx: 0, vy: 0 });
   onDisconnect(myRef).remove();
 
   return { slot: mySlot, error: null };
@@ -44,13 +43,9 @@ export function sendPosition(x, y, vx, vy, dead = false) {
 
 export function onRemotePosition(callback) {
   if (!remoteRef) return;
-  unsubscribe = onValue(remoteRef, (snap) => {
+  unsubRemote = onValue(remoteRef, (snap) => {
     const data = snap.val();
-    if (data) {
-      callback(data);
-    } else {
-      callback(null); // other player left
-    }
+    callback(data || null);
   });
 }
 
@@ -58,9 +53,7 @@ export function leaveGame() {
   if (mySlot) {
     remove(ref(db, `game/${mySlot}`));
     mySlot = null;
+    otherSlot = null;
   }
-  if (unsubscribe) {
-    unsubscribe();
-    unsubscribe = null;
-  }
+  if (unsubRemote) { unsubRemote(); unsubRemote = null; }
 }
