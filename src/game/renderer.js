@@ -52,19 +52,48 @@ export function drawFrame(ctx, canvas, ball, remoteBall, mySlot) {
   drawBall(ctx, ball, BALL_COLORS[mySlot || 'player1']);
 }
 
-export function drawGameOver(ctx, canvas, score) {
+const RESULTS = {
+  win:  { text: 'YOU WIN',  color: '#4ade80' },
+  lose: { text: 'YOU LOSE', color: '#e94560' },
+  draw: { text: 'DRAW',     color: '#fbbf24' },
+};
+
+export function drawResult(ctx, canvas, result, score) {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const { text, color } = RESULTS[result];
+
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = '#fff';
+  // Badge background
+  const badgeW = 280;
+  const badgeH = 140;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.roundRect(cx - badgeW / 2, cy - badgeH / 2 - 10, badgeW, badgeH, 16);
+  ctx.fill();
+
+  // Badge border
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(cx - badgeW / 2, cy - badgeH / 2 - 10, badgeW, badgeH, 16);
+  ctx.stroke();
+
+  // Result text
+  ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.font = 'bold 48px system-ui';
-  ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 30);
+  ctx.fillText(text, cx, cy + 5);
 
-  ctx.font = '24px system-ui';
-  ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
-
-  ctx.font = '18px system-ui';
+  // Score
+  ctx.font = '20px system-ui';
   ctx.fillStyle = '#aaa';
-  ctx.fillText('Tap to restart', canvas.width / 2, canvas.height / 2 + 60);
+  ctx.fillText(`Survived: ${(score / 10).toFixed(1)}s`, cx, cy + 40);
+
+  // Tap hint
+  ctx.font = '16px system-ui';
+  ctx.fillStyle = '#666';
+  ctx.fillText('Tap to restart', cx, cy + badgeH / 2 + 20);
 }

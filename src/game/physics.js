@@ -35,6 +35,28 @@ export function updateBall(ball, tilt, canvas) {
   ball.y += ball.vy;
 }
 
+export function applyBallCollision(ball, remoteBall) {
+  if (!remoteBall) return;
+  const dx = ball.x - remoteBall.x;
+  const dy = ball.y - remoteBall.y;
+  const dist = Math.hypot(dx, dy);
+  const minDist = ball.radius + remoteBall.radius;
+
+  if (dist < minDist && dist > 0) {
+    // Push local ball out of overlap
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const overlap = minDist - dist;
+    ball.x += nx * overlap;
+    ball.y += ny * overlap;
+
+    // Bounce: add impulse along collision normal
+    const BOUNCE = 3;
+    ball.vx += nx * BOUNCE;
+    ball.vy += ny * BOUNCE;
+  }
+}
+
 export function checkEdgeCollision(ball, canvas) {
   return (
     ball.x - ball.radius <= 0 ||

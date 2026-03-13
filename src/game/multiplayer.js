@@ -37,9 +37,9 @@ export async function joinGame() {
   return { slot: mySlot, error: null };
 }
 
-export function sendPosition(x, y) {
+export function sendPosition(x, y, dead = false) {
   if (!mySlot) return;
-  set(ref(db, `game/${mySlot}`), { x, y });
+  set(ref(db, `game/${mySlot}`), { x, y, dead });
 }
 
 export function onRemotePosition(callback) {

@@ -1,8 +1,8 @@
-import { createBall, updateBall, checkEdgeCollision } from './physics.js';
-import { drawFrame, drawGameOver } from './renderer.js';
+import { createBall, updateBall, checkEdgeCollision, applyBallCollision } from './physics.js';
+import { drawFrame, drawResult } from './renderer.js';
 import { sendPosition, onRemotePosition } from './multiplayer.js';
 
-export function startGame(canvas, onScoreUpdate, onGameOver, onTiltUpdate, mySlot) {
+export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot) {
   const ctx = canvas.getContext('2d');
   let ball = createBall(canvas);
   let tilt = { beta: 0, gamma: 0 };
@@ -11,18 +11,29 @@ export function startGame(canvas, onScoreUpdate, onGameOver, onTiltUpdate, mySlo
   let animId;
   const keys = {};
 
-  // Remote player state
   let remoteBall = null;
+  let remoteDead = false;
+  let localDead = false;
 
   if (mySlot) {
     onRemotePosition((data) => {
       if (data) {
-        // Convert normalized 0-1 coords to local canvas size
         remoteBall = {
           x: data.x * canvas.width,
           y: data.y * canvas.height,
           radius: ball.radius,
         };
+        if (data.dead && !remoteDead) {
+          remoteDead = true;
+          if (!localDead) {
+            // We win!
+            running = false;
+            const score = Math.floor((Date.now() - startTime) / 100);
+            drawFrame(ctx, canvas, ball, remoteBall, mySlot);
+            drawResult(ctx, canvas, 'win', score);
+            onGameEnd(score);
+          }
+        }
       } else {
         remoteBall = null;
       }
@@ -61,12 +72,12 @@ export function startGame(canvas, onScoreUpdate, onGameOver, onTiltUpdate, mySlo
     if (onTiltUpdate) onTiltUpdate(tilt);
 
     updateBall(ball, tilt, canvas);
+    applyBallCollision(ball, remoteBall);
 
-    // Send position to Firebase every 3rd frame (~20hz) to reduce writes
     if (mySlot) {
       sendCounter++;
       if (sendCounter % 3 === 0) {
-        sendPosition(ball.x / canvas.width, ball.y / canvas.height);
+        sendPosition(ball.x / canvas.width, ball.y / canvas.height, localDead);
       }
     }
 
@@ -74,10 +85,15 @@ export function startGame(canvas, onScoreUpdate, onGameOver, onTiltUpdate, mySlo
     onScoreUpdate(score);
 
     if (checkEdgeCollision(ball, canvas)) {
+      localDead = true;
       running = false;
+      // Send death immediately
+      if (mySlot) sendPosition(ball.x / canvas.width, ball.y / canvas.height, true);
+
       drawFrame(ctx, canvas, ball, remoteBall, mySlot);
-      drawGameOver(ctx, canvas, score);
-      onGameOver(score);
+      const result = remoteDead ? 'draw' : 'lose';
+      drawResult(ctx, canvas, result, score);
+      onGameEnd(score);
       return;
     }
 
@@ -97,7 +113,7 @@ export function startGame(canvas, onScoreUpdate, onGameOver, onTiltUpdate, mySlo
     },
     restart() {
       this.destroy();
-      return startGame(canvas, onScoreUpdate, onGameOver, onTiltUpdate, mySlot);
+      return startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot);
     },
   };
 }
