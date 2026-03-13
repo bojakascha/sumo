@@ -1,4 +1,4 @@
-import { createBall, updateBall, checkEdgeCollision, applyBallCollision } from './physics.js';
+import { createBall, updateBall, checkEdgeCollision, applyBallCollision, getSettings } from './physics.js';
 import { drawFrame, drawResult } from './renderer.js';
 import { sendPosition, onRemotePosition } from './multiplayer.js';
 
@@ -18,10 +18,13 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
   if (mySlot) {
     onRemotePosition((data) => {
       if (data) {
+        const s = getSettings();
         remoteBall = {
           x: data.x * canvas.width,
           y: data.y * canvas.height,
-          radius: ball.radius,
+          vx: (data.vx || 0) * canvas.width,
+          vy: (data.vy || 0) * canvas.height,
+          radius: Math.min(canvas.width, canvas.height) * s.ballRadius,
         };
         if (data.dead && !remoteDead) {
           remoteDead = true;
@@ -77,7 +80,11 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
     if (mySlot) {
       sendCounter++;
       if (sendCounter % 3 === 0) {
-        sendPosition(ball.x / canvas.width, ball.y / canvas.height, localDead);
+        sendPosition(
+          ball.x / canvas.width, ball.y / canvas.height,
+          ball.vx / canvas.width, ball.vy / canvas.height,
+          localDead
+        );
       }
     }
 
@@ -88,7 +95,11 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
       localDead = true;
       running = false;
       // Send death immediately
-      if (mySlot) sendPosition(ball.x / canvas.width, ball.y / canvas.height, true);
+      if (mySlot) sendPosition(
+        ball.x / canvas.width, ball.y / canvas.height,
+        ball.vx / canvas.width, ball.vy / canvas.height,
+        true
+      );
 
       drawFrame(ctx, canvas, ball, remoteBall, mySlot);
       const result = remoteDead ? 'draw' : 'lose';

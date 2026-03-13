@@ -1,10 +1,25 @@
-const FRICTION = 0.96;
-const TILT_SENSITIVITY = 0.03;
-const MAX_SPEED = 6;
-const BALL_RADIUS_RATIO = 0.08; // fraction of smaller screen dimension
+// Default settings — overridden at runtime via settings menu
+export const defaults = {
+  ballRadius: 0.08,       // fraction of smaller screen dimension
+  tiltSensitivity: 0.03,  // acceleration per degree of tilt
+  friction: 0.96,         // velocity multiplier per frame (1 = no friction)
+  maxSpeed: 6,            // pixels per frame
+  bounceForce: 1.5,       // collision impulse multiplier
+  mass: 1,                // ball mass (affects push dynamics)
+};
+
+let settings = { ...defaults };
+
+export function getSettings() {
+  return settings;
+}
+
+export function updateSettings(newSettings) {
+  Object.assign(settings, newSettings);
+}
 
 export function createBall(canvas) {
-  const radius = Math.min(canvas.width, canvas.height) * BALL_RADIUS_RATIO;
+  const radius = Math.min(canvas.width, canvas.height) * settings.ballRadius;
   return {
     x: canvas.width / 2,
     y: canvas.height / 2,
@@ -15,46 +30,59 @@ export function createBall(canvas) {
 }
 
 export function updateBall(ball, tilt, canvas) {
-  // tilt.gamma = left/right (-90..90), tilt.beta = front/back (-180..180)
-  ball.vx += tilt.gamma * TILT_SENSITIVITY;
-  ball.vy += tilt.beta * TILT_SENSITIVITY;
+  ball.vx += tilt.gamma * settings.tiltSensitivity;
+  ball.vy += tilt.beta * settings.tiltSensitivity;
 
-  // clamp speed
   const speed = Math.hypot(ball.vx, ball.vy);
-  if (speed > MAX_SPEED) {
-    ball.vx = (ball.vx / speed) * MAX_SPEED;
-    ball.vy = (ball.vy / speed) * MAX_SPEED;
+  if (speed > settings.maxSpeed) {
+    ball.vx = (ball.vx / speed) * settings.maxSpeed;
+    ball.vy = (ball.vy / speed) * settings.maxSpeed;
   }
 
-  // apply friction
-  ball.vx *= FRICTION;
-  ball.vy *= FRICTION;
+  ball.vx *= settings.friction;
+  ball.vy *= settings.friction;
 
-  // move
   ball.x += ball.vx;
   ball.y += ball.vy;
+
+  // Update radius live so settings changes take effect
+  ball.radius = Math.min(canvas.width, canvas.height) * settings.ballRadius;
 }
 
 export function applyBallCollision(ball, remoteBall) {
   if (!remoteBall) return;
+
   const dx = ball.x - remoteBall.x;
   const dy = ball.y - remoteBall.y;
   const dist = Math.hypot(dx, dy);
   const minDist = ball.radius + remoteBall.radius;
 
-  if (dist < minDist && dist > 0) {
-    // Push local ball out of overlap
-    const nx = dx / dist;
-    const ny = dy / dist;
-    const overlap = minDist - dist;
-    ball.x += nx * overlap;
-    ball.y += ny * overlap;
+  if (dist >= minDist || dist === 0) return;
 
-    // Bounce: add impulse along collision normal
-    const BOUNCE = 3;
-    ball.vx += nx * BOUNCE;
-    ball.vy += ny * BOUNCE;
-  }
+  // Collision normal (from remote to local)
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  // Separate balls so they don't overlap
+  const overlap = minDist - dist;
+  ball.x += nx * overlap;
+  ball.y += ny * overlap;
+
+  // Relative velocity of local ball w.r.t. remote ball
+  const rvx = ball.vx - (remoteBall.vx || 0);
+  const rvy = ball.vy - (remoteBall.vy || 0);
+
+  // Relative velocity along collision normal
+  const velAlongNormal = rvx * nx + rvy * ny;
+
+  // Only resolve if balls are moving toward each other
+  if (velAlongNormal > 0) return;
+
+  // Impulse based on relative velocity and bounce force
+  const impulse = -velAlongNormal * settings.bounceForce;
+
+  ball.vx += impulse * nx;
+  ball.vy += impulse * ny;
 }
 
 export function checkEdgeCollision(ball, canvas) {

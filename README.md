@@ -4,7 +4,7 @@
 ## Tech stack
 - React for app shell: install prompt, settings, start screen, permission button, score UI
 - JavaScript game core: canvas, requestAnimationFrame, physics, sensor listeners
-- Potentially Firebase /Firestore DB for backend multiplayer (not needed for V0.5)
+- Three.js if we need advanced graphics
 
 ## Game play V0.5
 - Player is rendered on screen as large sphere or ball

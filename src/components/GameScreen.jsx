@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { startGame } from '../game/loop.js';
 import { joinGame, leaveGame } from '../game/multiplayer.js';
+import SettingsMenu from './SettingsMenu.jsx';
 
 export default function GameScreen({ onGameOver, onBack }) {
   const canvasRef = useRef(null);
@@ -82,6 +83,7 @@ export default function GameScreen({ onGameOver, onBack }) {
       <div style={styles.debug}>
         {status} | β:{tilt.beta.toFixed(1)} γ:{tilt.gamma.toFixed(1)}
       </div>
+      <SettingsMenu />
     </div>
   );
 }
