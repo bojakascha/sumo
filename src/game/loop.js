@@ -1,6 +1,6 @@
 import { createBall, updateBall, checkEdgeCollision, applyBallCollision, getSettings } from './physics.js';
 import { drawArena, drawBalls, drawResult } from './renderer.js';
-import { drawTrack, checkWallCollisions, createLapTracker, getStartPosition } from './track.js';
+import { checkImageWallCollision, drawImageTrack, getImageStartPosition, createImageLapTracker } from './imageTrack.js';
 import { sendState, onRemotePosition } from './multiplayer.js';
 
 const RACE_LAPS = 3;
@@ -20,11 +20,10 @@ export function startGame(canvas, callbacks, mySlot, mode) {
   let localDead = false;
   let remoteLaps = 0;
 
-  const lapTracker = mode === 'race' ? createLapTracker() : null;
+  const lapTracker = mode === 'race' ? createImageLapTracker() : null;
 
-  // Position balls at start line in race mode
   if (mode === 'race') {
-    const start = getStartPosition(mySlot || 'player1', canvas);
+    const start = getImageStartPosition(mySlot || 'player1', canvas);
     ball.x = start.x;
     ball.y = start.y;
   }
@@ -45,7 +44,6 @@ export function startGame(canvas, callbacks, mySlot, mode) {
         if (mode === 'race' && data.laps !== undefined) {
           remoteLaps = data.laps;
           if (remoteLaps >= RACE_LAPS && !localDead) {
-            // They won the race
             running = false;
             drawScene();
             drawResult(ctx, canvas, 'lose', `${remoteLaps} laps`);
@@ -90,7 +88,7 @@ export function startGame(canvas, callbacks, mySlot, mode) {
 
   function drawScene() {
     if (mode === 'race') {
-      drawTrack(ctx, canvas);
+      drawImageTrack(ctx, canvas, getSettings().showCollision);
     } else {
       drawArena(ctx, canvas);
     }
@@ -112,10 +110,8 @@ export function startGame(canvas, callbacks, mySlot, mode) {
     applyBallCollision(ball, remoteBall, tilt);
 
     if (mode === 'race') {
-      // Bounce off track walls
-      checkWallCollisions(ball, canvas);
+      checkImageWallCollision(ball, canvas);
 
-      // Lap tracking
       lapTracker.update(ball, canvas);
       if (onLapUpdate) onLapUpdate(lapTracker.laps, lapTracker.passedCheckpoint);
 
@@ -133,7 +129,6 @@ export function startGame(canvas, callbacks, mySlot, mode) {
       }
     }
 
-    // Send state to Firebase
     if (mySlot) {
       sendCounter++;
       if (sendCounter % 3 === 0) {
@@ -146,7 +141,6 @@ export function startGame(canvas, callbacks, mySlot, mode) {
       }
     }
 
-    // Sumo mode: edge = death
     if (mode === 'sumo') {
       const score = Math.floor((Date.now() - startTime) / 100);
       onScoreUpdate(score);

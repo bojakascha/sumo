@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "process-mask": "node scripts/process-mask.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.0",
+    "sharp": "^0.34.5",
     "vite": "^8.0.0"
   }
 }

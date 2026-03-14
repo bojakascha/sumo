@@ -15,8 +15,8 @@ export default function SettingsMenu() {
   const [values, setValues] = useState(() => ({ ...getSettings() }));
 
   function handleChange(key, val) {
-    const num = parseFloat(val);
-    const next = { ...values, [key]: num };
+    const parsed = typeof val === 'boolean' ? val : parseFloat(val);
+    const next = { ...values, [key]: parsed };
     setValues(next);
     updateSettings(next);
   }
@@ -48,6 +48,14 @@ export default function SettingsMenu() {
               <span style={styles.value}>{values[key].toFixed(3)}</span>
             </div>
           ))}
+          <div style={styles.row}>
+            <label style={styles.label}>Collision</label>
+            <input
+              type="checkbox"
+              checked={values.showCollision || false}
+              onChange={(e) => handleChange('showCollision', e.target.checked)}
+            />
+          </div>
           <button style={styles.resetBtn} onClick={handleReset}>
             Reset Defaults
           </button>

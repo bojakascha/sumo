@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { startGame } from '../game/loop.js';
 import { joinGame, leaveGame } from '../game/multiplayer.js';
+import { loadTrackImages } from '../game/imageTrack.js';
 import SettingsMenu from './SettingsMenu.jsx';
 
 export default function GameScreen({ onGameOver, onBack, mode }) {
@@ -43,7 +44,12 @@ export default function GameScreen({ onGameOver, onBack, mode }) {
   useEffect(() => {
     let cancelled = false;
 
-    joinGame().then(({ slot, error }) => {
+    async function init() {
+      if (mode === 'race') {
+        setStatus('Loading track...');
+        await loadTrackImages();
+      }
+      const { slot, error } = await joinGame();
       if (cancelled) return;
       if (error) {
         setStatus(error);
@@ -52,7 +58,8 @@ export default function GameScreen({ onGameOver, onBack, mode }) {
       slotRef.current = slot;
       setStatus(`Joined as ${slot}`);
       initGame(slot);
-    });
+    }
+    init();
 
     return () => {
       cancelled = true;

@@ -5,6 +5,7 @@ export const defaults = {
   maxSpeed: 6,
   bounceForce: 1.2,      // elastic bounce on collision (velocity-based)
   pushForce: 0.01,       // sustained tilt-based push when in contact
+  showCollision: false,  // debug: render collision overlay
 };
 
 let settings = { ...defaults };
