@@ -1,32 +1,13 @@
+import { drawSphere, isTextureReady } from './sphereRenderer.js';
+
 const ARENA_BORDER = 4;
 const ARENA_BG = '#16213e';
 const ARENA_BORDER_COLOR = '#e94560';
 
 const BALL_COLORS = {
-  player1: { main: '#e94560', highlight: '#ff6b81' },
-  player2: { main: '#0f9b8e', highlight: '#45d9c9' },
+  player1: '#e94560',
+  player2: '#0f9b8e',
 };
-
-function drawBall(ctx, ball, colors) {
-  ctx.beginPath();
-  ctx.arc(ball.x + 3, ball.y + 3, ball.radius, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fill();
-
-  const grad = ctx.createRadialGradient(
-    ball.x - ball.radius * 0.3,
-    ball.y - ball.radius * 0.3,
-    ball.radius * 0.1,
-    ball.x, ball.y, ball.radius
-  );
-  grad.addColorStop(0, colors.highlight);
-  grad.addColorStop(1, colors.main);
-
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-  ctx.fillStyle = grad;
-  ctx.fill();
-}
 
 export function drawArena(ctx, canvas) {
   ctx.fillStyle = ARENA_BG;
@@ -39,9 +20,9 @@ export function drawArena(ctx, canvas) {
 export function drawBalls(ctx, ball, remoteBall, mySlot) {
   if (remoteBall) {
     const remoteSlot = mySlot === 'player1' ? 'player2' : 'player1';
-    drawBall(ctx, remoteBall, BALL_COLORS[remoteSlot]);
+    drawSphere(ctx, remoteBall, BALL_COLORS[remoteSlot]);
   }
-  drawBall(ctx, ball, BALL_COLORS[mySlot || 'player1']);
+  drawSphere(ctx, ball, BALL_COLORS[mySlot || 'player1']);
 }
 
 const RESULTS = {

@@ -7,7 +7,7 @@ export function loadTrackImages() {
     bgImage = new Image();
     bgImage.onload = resolve;
     bgImage.onerror = reject;
-    bgImage.src = import.meta.env.BASE_URL + 'race_track_1.png';
+    bgImage.src = import.meta.env.BASE_URL + 'race_track_1.webp';
   });
 }
 

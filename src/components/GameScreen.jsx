@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { startGame } from '../game/loop.js';
 import { joinGame, leaveGame } from '../game/multiplayer.js';
 import { loadTrackImages } from '../game/imageTrack.js';
+import { loadArenaImages } from '../game/imageArena.js';
+import { loadSphereTexture } from '../game/sphereRenderer.js';
 import SettingsMenu from './SettingsMenu.jsx';
 
 export default function GameScreen({ onGameOver, onBack, mode }) {
@@ -45,9 +47,13 @@ export default function GameScreen({ onGameOver, onBack, mode }) {
     let cancelled = false;
 
     async function init() {
+      setStatus('Loading...');
+      const textureSrc = (import.meta.env.BASE_URL || '/') + 'sumo_ball_texture.png';
+      await loadSphereTexture(textureSrc).catch(() => {});
       if (mode === 'race') {
-        setStatus('Loading track...');
         await loadTrackImages();
+      } else if (mode === 'sumo') {
+        await loadArenaImages();
       }
       const { slot, error } = await joinGame();
       if (cancelled) return;

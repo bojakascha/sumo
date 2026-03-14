@@ -1,7 +1,9 @@
 import { createBall, updateBall, checkEdgeCollision, applyBallCollision, getSettings } from './physics.js';
 import { drawArena, drawBalls, drawResult } from './renderer.js';
 import { checkImageWallCollision, drawImageTrack, getImageStartPosition, createImageLapTracker } from './imageTrack.js';
+import { checkArenaCollision, drawArenaBackground, getArenaStartPosition, ZONE_DEATH } from './imageArena.js';
 import { sendState, onRemotePosition } from './multiplayer.js';
+import { createOrientation, updateOrientation } from './sphereRenderer.js';
 
 const RACE_LAPS = 3;
 
@@ -16,6 +18,8 @@ export function startGame(canvas, callbacks, mySlot, mode) {
   const keys = {};
 
   let remoteBall = null;
+  let remoteOrientation = createOrientation();
+  let remotePrevPos = null;
   let remoteDead = false;
   let localDead = false;
   let remoteLaps = 0;
@@ -26,20 +30,37 @@ export function startGame(canvas, callbacks, mySlot, mode) {
     const start = getImageStartPosition(mySlot || 'player1', canvas);
     ball.x = start.x;
     ball.y = start.y;
+  } else if (mode === 'sumo') {
+    const start = getArenaStartPosition(mySlot || 'player1', canvas);
+    ball.x = start.x;
+    ball.y = start.y;
   }
 
   if (mySlot) {
     onRemotePosition((data) => {
       if (data) {
         const s = getSettings();
+        const newX = data.x * canvas.width;
+        const newY = data.y * canvas.height;
+        const r = Math.min(canvas.width, canvas.height) * s.ballRadius;
+
+        // Update orientation based on position delta
+        if (remotePrevPos) {
+          const dx = newX - remotePrevPos.x;
+          const dy = newY - remotePrevPos.y;
+          remoteOrientation = updateOrientation(remoteOrientation, dx, dy, r);
+        }
+        remotePrevPos = { x: newX, y: newY };
+
         remoteBall = {
-          x: data.x * canvas.width,
-          y: data.y * canvas.height,
+          x: newX,
+          y: newY,
           vx: (data.vx || 0) * canvas.width,
           vy: (data.vy || 0) * canvas.height,
           tiltBeta: data.tb || 0,
           tiltGamma: data.tg || 0,
-          radius: Math.min(canvas.width, canvas.height) * s.ballRadius,
+          radius: r,
+          orientation: remoteOrientation,
         };
         if (mode === 'race' && data.laps !== undefined) {
           remoteLaps = data.laps;
@@ -90,7 +111,7 @@ export function startGame(canvas, callbacks, mySlot, mode) {
     if (mode === 'race') {
       drawImageTrack(ctx, canvas, getSettings().showCollision);
     } else {
-      drawArena(ctx, canvas);
+      drawArenaBackground(ctx, canvas, getSettings().showCollision);
     }
     drawBalls(ctx, ball, remoteBall, mySlot);
   }
@@ -145,7 +166,8 @@ export function startGame(canvas, callbacks, mySlot, mode) {
       const score = Math.floor((Date.now() - startTime) / 100);
       onScoreUpdate(score);
 
-      if (checkEdgeCollision(ball, canvas)) {
+      const zone = checkArenaCollision(ball, canvas);
+      if (zone === ZONE_DEATH) {
         localDead = true;
         running = false;
         if (mySlot) sendState(

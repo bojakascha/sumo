@@ -18,6 +18,8 @@ export function updateSettings(newSettings) {
   Object.assign(settings, newSettings);
 }
 
+import { createOrientation, updateOrientation } from './sphereRenderer.js';
+
 export function createBall(canvas) {
   const radius = Math.min(canvas.width, canvas.height) * settings.ballRadius;
   return {
@@ -25,6 +27,7 @@ export function createBall(canvas) {
     y: canvas.height / 2,
     vx: 0,
     vy: 0,
+    orientation: createOrientation(),
     radius,
   };
 }
@@ -45,6 +48,7 @@ export function updateBall(ball, tilt, canvas) {
 
   ball.x += ball.vx;
   ball.y += ball.vy;
+  ball.orientation = updateOrientation(ball.orientation, ball.vx, ball.vy, ball.radius);
 
   ball.radius = Math.min(canvas.width, canvas.height) * settings.ballRadius;
 }
