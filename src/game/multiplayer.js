@@ -36,9 +36,11 @@ export async function joinGame() {
   return { slot: mySlot, error: null };
 }
 
-export function sendState(x, y, vx, vy, tb, tg, dead = false) {
+export function sendState(x, y, vx, vy, tb, tg, dead = false, laps) {
   if (!mySlot) return;
-  set(ref(db, `game/${mySlot}`), { x, y, vx, vy, tb, tg, dead });
+  const data = { x, y, vx, vy, tb, tg, dead };
+  if (laps !== undefined) data.laps = laps;
+  set(ref(db, `game/${mySlot}`), data);
 }
 
 export function onRemotePosition(callback) {

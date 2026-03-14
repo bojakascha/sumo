@@ -3,7 +3,7 @@ import { startGame } from '../game/loop.js';
 import { joinGame, leaveGame } from '../game/multiplayer.js';
 import SettingsMenu from './SettingsMenu.jsx';
 
-export default function GameScreen({ onGameOver, onBack }) {
+export default function GameScreen({ onGameOver, onBack, mode }) {
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
   const slotRef = useRef(null);
@@ -11,6 +11,7 @@ export default function GameScreen({ onGameOver, onBack }) {
   const [gameOver, setGameOver] = useState(false);
   const [tilt, setTilt] = useState({ beta: 0, gamma: 0 });
   const [status, setStatus] = useState('Connecting...');
+  const [lapInfo, setLapInfo] = useState({ laps: 0, checkpoint: false });
 
   const initGame = useCallback((slot) => {
     const canvas = canvasRef.current;
@@ -21,18 +22,23 @@ export default function GameScreen({ onGameOver, onBack }) {
 
     setScore(0);
     setGameOver(false);
+    setLapInfo({ laps: 0, checkpoint: false });
 
     gameRef.current = startGame(
       canvas,
-      (s) => setScore(s),
-      (finalScore) => {
-        setGameOver(true);
-        onGameOver(finalScore);
+      {
+        onScoreUpdate: (s) => setScore(s),
+        onGameEnd: (finalScore) => {
+          setGameOver(true);
+          onGameOver(finalScore);
+        },
+        onTiltUpdate: (t) => setTilt({ beta: t.beta, gamma: t.gamma }),
+        onLapUpdate: (laps, checkpoint) => setLapInfo({ laps, checkpoint }),
       },
-      (t) => setTilt({ beta: t.beta, gamma: t.gamma }),
-      slot
+      slot,
+      mode
     );
-  }, [onGameOver]);
+  }, [onGameOver, mode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +84,16 @@ export default function GameScreen({ onGameOver, onBack }) {
         <button style={styles.backBtn} onClick={handleBack}>
           &#x2715;
         </button>
-        <span style={styles.score}>{score}</span>
+        <div style={styles.hudRight}>
+          {mode === 'race' ? (
+            <span style={styles.score}>
+              Lap {lapInfo.laps}/3
+              {lapInfo.checkpoint ? ' ✓' : ''}
+            </span>
+          ) : (
+            <span style={styles.score}>{score}</span>
+          )}
+        </div>
       </div>
       <div style={styles.debug}>
         {status} | β:{tilt.beta.toFixed(1)} γ:{tilt.gamma.toFixed(1)}
@@ -109,6 +124,11 @@ const styles = {
     padding: '12px 20px',
     paddingTop: 'max(12px, env(safe-area-inset-top))',
     pointerEvents: 'none',
+  },
+  hudRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
   },
   backBtn: {
     pointerEvents: 'auto',

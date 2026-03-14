@@ -4,12 +4,14 @@ import GameScreen from './components/GameScreen.jsx';
 import './index.css';
 
 export default function App() {
-  const [screen, setScreen] = useState('start'); // 'start' | 'game'
+  const [screen, setScreen] = useState('start');
+  const [mode, setMode] = useState('sumo');
   const [highScore, setHighScore] = useState(
     () => parseInt(localStorage.getItem('sumo-highscore')) || 0
   );
 
-  function handleStart() {
+  function handleStart(selectedMode) {
+    setMode(selectedMode);
     setScreen('game');
   }
 
@@ -27,6 +29,6 @@ export default function App() {
   return screen === 'start' ? (
     <StartScreen onStart={handleStart} highScore={highScore} />
   ) : (
-    <GameScreen onGameOver={handleGameOver} onBack={handleBack} />
+    <GameScreen onGameOver={handleGameOver} onBack={handleBack} mode={mode} />
   );
 }

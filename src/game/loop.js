@@ -1,8 +1,12 @@
 import { createBall, updateBall, checkEdgeCollision, applyBallCollision, getSettings } from './physics.js';
-import { drawFrame, drawResult } from './renderer.js';
+import { drawArena, drawBalls, drawResult } from './renderer.js';
+import { drawTrack, checkWallCollisions, createLapTracker, getStartPosition } from './track.js';
 import { sendState, onRemotePosition } from './multiplayer.js';
 
-export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot) {
+const RACE_LAPS = 3;
+
+export function startGame(canvas, callbacks, mySlot, mode) {
+  const { onScoreUpdate, onGameEnd, onTiltUpdate, onLapUpdate } = callbacks;
   const ctx = canvas.getContext('2d');
   let ball = createBall(canvas);
   let tilt = { beta: 0, gamma: 0 };
@@ -14,6 +18,16 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
   let remoteBall = null;
   let remoteDead = false;
   let localDead = false;
+  let remoteLaps = 0;
+
+  const lapTracker = mode === 'race' ? createLapTracker() : null;
+
+  // Position balls at start line in race mode
+  if (mode === 'race') {
+    const start = getStartPosition(mySlot || 'player1', canvas);
+    ball.x = start.x;
+    ball.y = start.y;
+  }
 
   if (mySlot) {
     onRemotePosition((data) => {
@@ -28,12 +42,22 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
           tiltGamma: data.tg || 0,
           radius: Math.min(canvas.width, canvas.height) * s.ballRadius,
         };
+        if (mode === 'race' && data.laps !== undefined) {
+          remoteLaps = data.laps;
+          if (remoteLaps >= RACE_LAPS && !localDead) {
+            // They won the race
+            running = false;
+            drawScene();
+            drawResult(ctx, canvas, 'lose', `${remoteLaps} laps`);
+            onGameEnd(0);
+          }
+        }
         if (data.dead && !remoteDead) {
           remoteDead = true;
-          if (!localDead) {
+          if (!localDead && mode === 'sumo') {
             running = false;
             const score = Math.floor((Date.now() - startTime) / 100);
-            drawFrame(ctx, canvas, ball, remoteBall, mySlot);
+            drawScene();
             drawResult(ctx, canvas, 'win', score);
             onGameEnd(score);
           }
@@ -64,6 +88,15 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
 
   let sendCounter = 0;
 
+  function drawScene() {
+    if (mode === 'race') {
+      drawTrack(ctx, canvas);
+    } else {
+      drawArena(ctx, canvas);
+    }
+    drawBalls(ctx, ball, remoteBall, mySlot);
+  }
+
   function tick() {
     if (!running) return;
 
@@ -78,39 +111,63 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
     updateBall(ball, tilt, canvas);
     applyBallCollision(ball, remoteBall, tilt);
 
+    if (mode === 'race') {
+      // Bounce off track walls
+      checkWallCollisions(ball, canvas);
+
+      // Lap tracking
+      lapTracker.update(ball, canvas);
+      if (onLapUpdate) onLapUpdate(lapTracker.laps, lapTracker.passedCheckpoint);
+
+      if (lapTracker.laps >= RACE_LAPS) {
+        running = false;
+        if (mySlot) sendState(
+          ball.x / canvas.width, ball.y / canvas.height,
+          ball.vx / canvas.width, ball.vy / canvas.height,
+          tilt.beta, tilt.gamma, false, lapTracker.laps
+        );
+        drawScene();
+        drawResult(ctx, canvas, 'win', `${RACE_LAPS} laps`);
+        onGameEnd(1);
+        return;
+      }
+    }
+
+    // Send state to Firebase
     if (mySlot) {
       sendCounter++;
       if (sendCounter % 3 === 0) {
         sendState(
           ball.x / canvas.width, ball.y / canvas.height,
           ball.vx / canvas.width, ball.vy / canvas.height,
-          tilt.beta, tilt.gamma,
-          localDead
+          tilt.beta, tilt.gamma, localDead,
+          mode === 'race' ? lapTracker.laps : undefined
         );
       }
     }
 
-    const score = Math.floor((Date.now() - startTime) / 100);
-    onScoreUpdate(score);
+    // Sumo mode: edge = death
+    if (mode === 'sumo') {
+      const score = Math.floor((Date.now() - startTime) / 100);
+      onScoreUpdate(score);
 
-    if (checkEdgeCollision(ball, canvas)) {
-      localDead = true;
-      running = false;
-      if (mySlot) sendState(
-        ball.x / canvas.width, ball.y / canvas.height,
-        ball.vx / canvas.width, ball.vy / canvas.height,
-        tilt.beta, tilt.gamma,
-        true
-      );
-
-      drawFrame(ctx, canvas, ball, remoteBall, mySlot);
-      const result = remoteDead ? 'draw' : 'lose';
-      drawResult(ctx, canvas, result, score);
-      onGameEnd(score);
-      return;
+      if (checkEdgeCollision(ball, canvas)) {
+        localDead = true;
+        running = false;
+        if (mySlot) sendState(
+          ball.x / canvas.width, ball.y / canvas.height,
+          ball.vx / canvas.width, ball.vy / canvas.height,
+          tilt.beta, tilt.gamma, true
+        );
+        drawScene();
+        const result = remoteDead ? 'draw' : 'lose';
+        drawResult(ctx, canvas, result, score);
+        onGameEnd(score);
+        return;
+      }
     }
 
-    drawFrame(ctx, canvas, ball, remoteBall, mySlot);
+    drawScene();
     animId = requestAnimationFrame(tick);
   }
 
@@ -126,7 +183,7 @@ export function startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot
     },
     restart() {
       this.destroy();
-      return startGame(canvas, onScoreUpdate, onGameEnd, onTiltUpdate, mySlot);
+      return startGame(canvas, callbacks, mySlot, mode);
     },
   };
 }

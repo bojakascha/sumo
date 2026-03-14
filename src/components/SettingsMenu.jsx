@@ -4,7 +4,7 @@ import { defaults, getSettings, updateSettings } from '../game/physics.js';
 const PARAMS = [
   { key: 'ballRadius',       label: 'Ball Size',       min: 0.02, max: 0.2,  step: 0.01 },
   { key: 'tiltSensitivity',  label: 'Tilt Accel.',     min: 0.005,max: 0.1,  step: 0.005 },
-  { key: 'friction',         label: 'Friction',        min: 0.8,  max: 1.0,  step: 0.005 },
+  { key: 'drag',             label: 'Drag',            min: 0.0,  max: 0.2,  step: 0.005 },
   { key: 'maxSpeed',         label: 'Max Speed',       min: 1,    max: 20,   step: 0.5 },
   { key: 'bounceForce',      label: 'Bounce Force',    min: 0.5,  max: 5,    step: 0.1 },
   { key: 'pushForce',        label: 'Push Force',      min: 0.005, max: 0.1,  step: 0.005 },

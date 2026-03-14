@@ -1,7 +1,7 @@
 export const defaults = {
   ballRadius: 0.08,
   tiltSensitivity: 0.03,
-  friction: 0.96,
+  drag: 0.04,            // speed lost per frame (0 = ice, 1 = molasses)
   maxSpeed: 6,
   bounceForce: 1.2,      // elastic bounce on collision (velocity-based)
   pushForce: 0.01,       // sustained tilt-based push when in contact
@@ -38,8 +38,9 @@ export function updateBall(ball, tilt, canvas) {
     ball.vy = (ball.vy / speed) * settings.maxSpeed;
   }
 
-  ball.vx *= settings.friction;
-  ball.vy *= settings.friction;
+  const retention = 1 - settings.drag;
+  ball.vx *= retention;
+  ball.vy *= retention;
 
   ball.x += ball.vx;
   ball.y += ball.vy;

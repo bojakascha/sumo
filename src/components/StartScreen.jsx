@@ -5,7 +5,6 @@ export default function StartScreen({ onStart, highScore }) {
   const [permError, setPermError] = useState(false);
 
   async function requestPermission() {
-    // iOS 13+ requires explicit permission request
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const result = await DeviceOrientationEvent.requestPermission();
@@ -19,26 +18,24 @@ export default function StartScreen({ onStart, highScore }) {
         setPermError(true);
       }
     } else {
-      // Android / desktop — permission not needed
       setPermGranted(true);
     }
   }
 
-  function handlePlay() {
+  function handlePlay(mode) {
     if (!permGranted) {
       requestPermission().then(() => {
-        // After granting, start immediately
-        onStart();
+        onStart(mode);
       });
     } else {
-      onStart();
+      onStart(mode);
     }
   }
 
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>SUMO</h1>
-      <p style={styles.subtitle}>Tilt to roll. Don't hit the edge.</p>
+      <p style={styles.subtitle}>Tilt to roll. Push or race.</p>
 
       {highScore > 0 && (
         <p style={styles.highScore}>Best: {highScore}</p>
@@ -56,12 +53,20 @@ export default function StartScreen({ onStart, highScore }) {
         </p>
       )}
 
-      <button
-        style={{ ...styles.button, ...styles.playButton }}
-        onClick={handlePlay}
-      >
-        PLAY
-      </button>
+      <div style={styles.modes}>
+        <button
+          style={{ ...styles.button, ...styles.playButton }}
+          onClick={() => handlePlay('sumo')}
+        >
+          SUMO
+        </button>
+        <button
+          style={{ ...styles.button, ...styles.raceButton }}
+          onClick={() => handlePlay('race')}
+        >
+          RACE
+        </button>
+      </div>
     </div>
   );
 }
@@ -101,10 +106,19 @@ const styles = {
     color: '#e94560',
     cursor: 'pointer',
   },
+  modes: {
+    display: 'flex',
+    gap: 16,
+    marginTop: 8,
+  },
   playButton: {
     background: '#e94560',
     color: '#fff',
-    marginTop: 8,
+  },
+  raceButton: {
+    background: '#0f9b8e',
+    color: '#fff',
+    borderColor: '#0f9b8e',
   },
   error: {
     color: '#ff6b6b',
